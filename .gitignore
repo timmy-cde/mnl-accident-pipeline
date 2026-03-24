@@ -24,6 +24,8 @@ terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 
-keys/
+config/*.*
+
+# kaggle
 .complete
 .data

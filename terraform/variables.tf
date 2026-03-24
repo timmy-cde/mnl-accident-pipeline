@@ -1,6 +1,6 @@
 variable "credentials" {
   description = "My Credential"
-  default     = "../keys/mnl-accident-pipeline-key.json"
+  default     = "../config/gcs-terraform-key.json"
 }
 
 variable "project" {
