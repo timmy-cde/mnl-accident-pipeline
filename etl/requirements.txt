@@ -1,0 +1,5 @@
+requests
+python-dotenv
+selenium
+kagglehub
+google-cloud-storage

@@ -20,6 +20,10 @@ venv.bak/
 
 # terraform
 terraform/.terraform/
-terraform/keys/
 terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+
+keys/
+.complete
+.data
