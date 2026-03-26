@@ -20,11 +20,17 @@ PHT = ZoneInfo("Asia/Manila")
 def init_driver():
     options = webdriver.FirefoxOptions()
     options.add_argument("-headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     options.set_preference("privacy.trackingprotection.enabled", True)
     options.set_preference("network.http.referer.XOriginPolicy", 2)
     options.set_preference("network.http.referer.XOriginTrimmingPolicy", 2)
     options.set_preference("dom.popup_allowed_events", "")
     options.set_preference("dom.disable_open_during_load", True)
+    options.set_preference(
+        "general.useragent.override",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:117.0) Gecko/20100101 Firefox/117.0"
+    )
 
     driver = webdriver.Firefox(options=options)
     return driver
@@ -37,7 +43,7 @@ def parse_tweets(driver):
 
     for item in items:
         try:
-            content = item.find_element(By.CSS_SELECTOR, ".tweet-content").text.strip().text.replace('"', '')
+            content = item.find_element(By.CSS_SELECTOR, ".tweet-content").text.strip()
 
             date_elem = item.find_element(By.CSS_SELECTOR, ".tweet-date a")
             date_str = date_elem.get_attribute("title")
@@ -68,9 +74,11 @@ def parse_tweets(driver):
     return tweets, cursor
 
 
-def scrape_historical(start_date):
+def scrape_historical(start_date_str):
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d").replace(tzinfo=PHT)
+
     driver = init_driver()
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 20)
 
     url = f"{BASE_URL}/MMDA"
     all_data = []
@@ -119,7 +127,7 @@ def scrape_historical(start_date):
             url = f"{BASE_URL}/MMDA{cursor}"
 
         page += 1
-        time.sleep(3)
+        time.sleep(5)
 
     driver.quit()
 
@@ -131,11 +139,11 @@ def main():
     now = datetime.now(PHT)
     yesterday = now - timedelta(days=1)
 
-    start_date = yesterday.replace(tzinfo=PHT)
+    year = yesterday.strftime("%Y")
+    month = yesterday.strftime("%m")
+    day = yesterday.strftime("%d")
 
-    year = start_date.strftime("%Y")
-    month = start_date.strftime("%m")
-    day = start_date.strftime("%d")
+    start_date = yesterday.strftime("%Y-%m-%d")
 
     # Prepare the output file
     filename = f"scrape_data_{year}{month}{day}.csv"
@@ -146,22 +154,24 @@ def main():
         os.makedirs(output_path, exist_ok=True)
 
     # Scrape the data
-    print(start_date)
     df = scrape_historical(start_date)
+    df.to_csv(f"{output_path}/{filename}", index=False)
 
-    if not len(df) < 0:
-        df.to_csv(f"{output_path}/{filename}", index=False)
+    # Check if the scraped data is not empty
+    first_row = df.iloc[0]
+    is_empty = first_row.astype(str).str.strip().eq("").all()
 
-        # Upload to gcs
+    # Upload to gcs
+    if not is_empty:
         bucket = os.environ.get("BUCKET_NAME")
         bucket_folder_name = os.environ.get("FOLDER_NAME")
 
         gcs_object_name = f"{bucket_folder_name}/scrape/{year}/{month}/{filename}"
 
         upload_to_gcs(bucket, gcs_object_name, f"{output_path}/{filename}")
-        print(f"{gcs_object_name} finished uploading.")
+        print(f"{gcs_object_name} was uploaded to gcs.")
     else:
-        print("No data scraped.")
+        print(f"no scraped data: {start_date}")
 
 if __name__ == "__main__":
     main()

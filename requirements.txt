@@ -1,6 +1,13 @@
-requests
 python-dotenv
-selenium
 kagglehub
 google-cloud-storage
 apache-airflow-providers-fab
+
+selenium
+requests
+chardet==5.2.0
+pandas
+python-dotenv
+pyspark==3.4.1
+
+ipykernel

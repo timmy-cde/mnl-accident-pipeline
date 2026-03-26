@@ -4,3 +4,4 @@ docker compose up -d
 docker exec -it mnl-accident-pipeline-airflow-1 airflow api-server --host 0.0.0.0 --port 8080
 
 
+# docker exec -it mnl-accident-pipeline-airflow-1 bash

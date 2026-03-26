@@ -5,22 +5,22 @@ FROM apache/airflow:3.2.0b2-python3.12
 # Switch to root to install OS dependencies
 USER root
 
-# Install Java 11 (Temurin) and other OS packages
-RUN apt-get update && apt-get install -y \
-    wget gnupg curl unzip git && \
-    mkdir -p /etc/apt/keyrings && \
-    wget -O- https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor > /etc/apt/keyrings/adoptium.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb bookworm main" > /etc/apt/sources.list.d/adoptium.list && \
-    apt-get update && apt-get install -y temurin-11-jdk && \
-    rm -rf /var/lib/apt/lists/*
-
-# Set Java environment
-ENV JAVA_HOME=/usr/lib/jvm/temurin-11-jdk-amd64
-ENV PATH=$JAVA_HOME/bin:$PATH
-
-# Set PySpark Python environment
-ENV PYSPARK_PYTHON=python3
-ENV PYSPARK_DRIVER_PYTHON=python3
+# Install Firefox and Geckodriver for Selenium
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl firefox-esr \
+        libdbus-glib-1-2 \
+        libasound2 \
+        libx11-xcb1 \
+        libxt6 \
+        libxrender1 \
+        libxrandr2 \
+        libgbm1 \
+        libnss3 \
+        libxss1 \
+    && rm -fr /var/lib/apt/lists/* \
+    && curl -L https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz | tar xz -C /usr/local/bin \
+    && apt-get purge -y ca-certificates curl
 
 # Set working directory for your ETL scripts
 WORKDIR /app
@@ -39,6 +39,23 @@ USER airflow
 # Copy Python requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Switch to root to install OS dependencies
+USER root
+
+RUN apt-get update
+RUN apt-get install -y ca-certificates curl openjdk-17-jdk
+
+# Set Java environment
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Set PySpark Python environment
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
+
+# Switch back to airflow user
+USER airflow
 
 # Default entrypoint: start airflow webserver and scheduler together
 # ENTRYPOINT ["bash", "-c", "\
