@@ -3,3 +3,4 @@ python-dotenv
 selenium
 kagglehub
 google-cloud-storage
+apache-airflow-providers-fab

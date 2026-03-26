@@ -1,0 +1,15 @@
+services:
+  airflow:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__AUTH_MANAGER: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+      GOOGLE_APPLICATION_CREDENTIALS: /app/config/gcs-terraform-key.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./dags/:/opt/airflow/dags
