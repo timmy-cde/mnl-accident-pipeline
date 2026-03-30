@@ -27,6 +27,10 @@ variable "gcs_bucket_name" {
   description = "My storage bucket name"
   default     = "mnl_accident_pipeline_bucket"
 }
+variable "gcs_temp_bucket_name" {
+  description = "My storage temporary bucket name"
+  default     = "tempresolvedlocation"
+}
 
 variable "gcs_storage_class" {
   description = "Bucket Storage Class"

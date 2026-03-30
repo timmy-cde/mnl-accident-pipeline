@@ -15,8 +15,8 @@ def main():
     output_dir = './.data'
     kaggle_filename = "data_mmda_traffic_spatial.csv"
 
-    bucket = os.environ.get("BUCKET_NAME")
-    bucket_folder_name = os.environ.get("FOLDER_NAME")
+    bucket_name = os.environ.get("BUCKET_NAME")
+    bucket_folder_name = os.environ.get("RAW_FOLDER_NAME")
     bucket_filename = "kaggle_historical_data.csv"
 
     gcs_object_name = f"{bucket_folder_name}/kaggle/{bucket_filename}"
@@ -24,7 +24,7 @@ def main():
 
     download_dataset(handle, kaggle_filename, output_dir)
 
-    upload_to_gcs(bucket, gcs_object_name, local_file)
+    upload_to_gcs(bucket_name, gcs_object_name, local_file)
     print(f"{gcs_object_name} finished uploading.")
 
 if __name__ == "__main__":

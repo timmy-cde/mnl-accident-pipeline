@@ -1,13 +1,16 @@
 python-dotenv
 kagglehub
 google-cloud-storage
+google-cloud-bigquery
 apache-airflow-providers-fab
+
+chardet==5.2.0
+python-dotenv
 
 selenium
 requests
-chardet==5.2.0
 pandas
-python-dotenv
+pyarrow
 pyspark==3.4.1
 
 ipykernel

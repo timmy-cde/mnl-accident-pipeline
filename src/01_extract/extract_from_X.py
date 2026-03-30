@@ -134,8 +134,71 @@ def scrape_historical(start_date_str):
     df = pd.DataFrame(all_data)
     return df
 
+
+def scrape_by_date(target_date_str):
+    target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+
+    driver = init_driver()
+    wait = WebDriverWait(driver, 20)
+
+    url = f"{BASE_URL}/MMDA"
+    all_data = []
+    page = 1
+
+    while True:
+        print(f"Scraping page {page}: {url}")
+        driver.get(url)
+
+        try:
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".timeline-item")))
+        except:
+            print("Page didn't load tweets.")
+            break
+
+        tweets, cursor = parse_tweets(driver)
+
+        if not tweets:
+            print("No tweets found, stopping.")
+            break
+
+        stop = False
+
+        for t in tweets:
+            tweet_date = t["created_at"].date()
+
+            if tweet_date == target_date:
+                all_data.append(t)
+
+            elif tweet_date < target_date:
+                stop = True
+                break
+
+        print(f"Collected so far: {len(all_data)}")
+
+        if stop:
+            print("Reached older than target date. Stopping.")
+            break
+
+        if not cursor:
+            print("No more pages.")
+            break
+
+        # Normalize cursor URL
+        if cursor.startswith("http"):
+            url = cursor
+        elif "MMDA" in cursor:
+            url = f"{BASE_URL}{cursor}"
+        else:
+            url = f"{BASE_URL}/MMDA{cursor}"
+
+        page += 1
+        time.sleep(5)
+
+    driver.quit()
+
+    return pd.DataFrame(all_data)
+
 def main():
-    # Get the date yesterday
     now = datetime.now(PHT)
     yesterday = now - timedelta(days=1)
 
@@ -143,36 +206,38 @@ def main():
     month = yesterday.strftime("%m")
     day = yesterday.strftime("%d")
 
-    start_date = yesterday.strftime("%Y-%m-%d")
+    TARGET_DATE = yesterday.strftime("%Y-%m-%d")
 
-    # Prepare the output file
+    # TARGET_DATE = "2026-03-25"
+
+    dt = datetime.strptime(TARGET_DATE, "%Y-%m-%d")
+
+    year = dt.strftime("%Y")
+    month = dt.strftime("%m")
+    day = dt.strftime("%d")
+
     filename = f"scrape_data_{year}{month}{day}.csv"
     output_path = "./.data/scrape"
 
-    # Create output folder if not existing
     if not os.path.exists(output_path):
         os.makedirs(output_path, exist_ok=True)
 
-    # Scrape the data
-    df = scrape_historical(start_date)
+    df = scrape_by_date(TARGET_DATE)
     df.to_csv(f"{output_path}/{filename}", index=False)
 
-    # Check if the scraped data is not empty
-    first_row = df.iloc[0]
-    is_empty = first_row.astype(str).str.strip().eq("").all()
+    # safer empty check
+    if df.empty:
+        print(f"No scraped data: {TARGET_DATE}")
+        return
 
-    # Upload to gcs
-    if not is_empty:
-        bucket = os.environ.get("BUCKET_NAME")
-        bucket_folder_name = os.environ.get("FOLDER_NAME")
+    # Upload to GCS
+    bucket_name = os.environ.get("BUCKET_NAME")
+    bucket_folder_name = os.environ.get("RAW_FOLDER_NAME")
 
-        gcs_object_name = f"{bucket_folder_name}/scrape/{year}/{month}/{filename}"
+    gcs_object_name = f"{bucket_folder_name}/scrape/{year}/{month}/{filename}"
 
-        upload_to_gcs(bucket, gcs_object_name, f"{output_path}/{filename}")
-        print(f"{gcs_object_name} was uploaded to gcs.")
-    else:
-        print(f"no scraped data: {start_date}")
+    upload_to_gcs(bucket_name, gcs_object_name, f"{output_path}/{filename}")
+    print(f"{gcs_object_name} was uploaded to gcs.")
 
 if __name__ == "__main__":
     main()
-

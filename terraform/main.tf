@@ -27,6 +27,20 @@ resource "google_storage_bucket" "mnl_accident_data_bucket" {
     }
   }
 }
+resource "google_storage_bucket" "temporary_bucket" {
+  name          = var.gcs_temp_bucket_name
+  location      = var.location
+  force_destroy = true
+
+  lifecycle_rule {
+    condition {
+      age = 1
+    }
+    action {
+      type = "AbortIncompleteMultipartUpload"
+    }
+  }
+}
 
 resource "google_bigquery_dataset" "mnl_accident_dataset" {
   dataset_id = var.bq_dataset_name
