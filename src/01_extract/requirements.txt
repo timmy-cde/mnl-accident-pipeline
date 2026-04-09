@@ -1,0 +1,8 @@
+python-dotenv
+google-cloud-storage
+
+chardet==5.2.0
+
+selenium
+requests
+pandas

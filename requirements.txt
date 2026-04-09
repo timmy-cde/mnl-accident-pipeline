@@ -5,7 +5,6 @@ google-cloud-bigquery
 apache-airflow-providers-fab
 
 chardet==5.2.0
-python-dotenv
 
 selenium
 requests

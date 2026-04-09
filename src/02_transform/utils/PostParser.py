@@ -1,5 +1,4 @@
 import re
-import logging
 from datetime import datetime, date
 from utils.CleanString import location_string_clean
 from utils.LocationFunctions import get_locations_from_bq
@@ -31,42 +30,29 @@ def strip_direction(text):
 
 def get_time(tweet_text):
     """
-    Extract time from MMDA tweet.
+    Extract time from MMDA tweet and convert it to 24-hour format.
     """
-    tweet_text = tweet_text.upper().replace(';', ':')
-    pattern = re.compile(r'\d+:\d\d[\s(AM|PM)]+')
-    matches = pattern.finditer(tweet_text)
-    logging.info('get_time(): Raw input {}'.format(tweet_text))
+    tweet_text = tweet_text.upper().replace(';', ':').replace('.', '')
+    # print('get_time(): Raw input {}'.format(tweet_text))
 
-    for match in matches:
-        tweet_text = match.group(0)
-        logging.info('get_time(): RegEx Match {}'.format(tweet_text))
-        tweet_text = tweet_text.replace('.', '')
-
-    if len(tweet_text) > 10:
+    # Match times like 4:30 PM, 04:30PM, 4 PM, 04PM
+    pattern = re.compile(r'\b(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b')
+    match = pattern.search(tweet_text)
+    if not match:
+        print('get_time(): No time found')
         return ''
 
-    numList = ['1','2','3','4','5','6','7','8','9','0',':']
-    pattern = re.compile(r'[0-9]\s[(AM|PM)]')
-    matches = pattern.finditer(tweet_text)
-    timeCheck = ''
-    for match in matches:
-        timeCheck = match.group(0)
-        logging.info('get_time(): TimeCheck Var {}'.format(timeCheck))
-
-    pattern = re.compile(r'(AM|PM)')
-    matches = pattern.finditer(tweet_text)
-    timeDay = ''
-    for match in matches:
-        timeDay = match.group(0)
-        logging.info('get_time(): timeDay Var {}'.format(timeDay))
-
-    if len(timeCheck) == 0 and ('AM' in tweet_text or 'PM' in tweet_text):
-        stringFix = ''.join([x for x in tweet_text if x in numList])
-        tweet_text = stringFix + ' ' + timeDay
-        logging.info('get_time(): Cleaned Output {}'.format(tweet_text))
-
-    return tweet_text
+    hour = int(match.group(1))
+    minute = int(match.group(2)) if match.group(2) else 0
+    meridiem = match.group(3)
+    try:
+        time_obj = datetime.strptime(f"{hour:02d}:{minute:02d} {meridiem}", '%I:%M %p')
+        time_24 = time_obj.strftime('%H:%M')
+        # print('get_time(): Parsed output {}'.format(time_24))
+        return time_24
+    except ValueError:
+        print('get_time(): Failed to parse time {}'.format(match.group(0)))
+        return ''
 
 
 def get_lanes_blocked(tweet_text):
@@ -75,18 +61,18 @@ def get_lanes_blocked(tweet_text):
     """
     pattern = re.compile(r'((\d\s*)|(\w*\s*))(LANE|LANES)')
     matches = pattern.finditer(tweet_text)
-    logging.info('get_lanes_blocked(): Raw input {}'.format(tweet_text))
+    # print('get_lanes_blocked(): Raw input {}'.format(tweet_text))
 
     tweet_lanes = ''
     for match in matches:
         tweet_text = match.group(0)
-        logging.info('get_lanes_blocked(): RegEx Match {}'.format(tweet_text))
+        # print('get_lanes_blocked(): RegEx Match {}'.format(tweet_text))
         tweet_lanes = tweet_text.split(' ')[0]
 
     if not tweet_lanes.strip().isdigit():
         tweet_lanes = word_2_num.get(tweet_lanes.strip(), '')
 
-    logging.info('get_lanes_blocked(): Cleaned output {}'.format(tweet_lanes))
+    # print('get_lanes_blocked(): Cleaned output {}'.format(tweet_lanes))
     return tweet_lanes
 
 
@@ -98,18 +84,18 @@ def get_inc_type(tweet_text):
     tweet_text = tweet_text.upper()
     pattern = re.compile(r'MMDA ALERT: .* AT ')
     matches = pattern.finditer(tweet_text)
-    logging.info('get_inc_type(): Raw input {}'.format(tweet_text))
+    # print('get_inc_type(): Raw input {}'.format(tweet_text))
 
     for match in matches:
         tweet_text = match.group(0)
-        logging.info('get_inc_type(): RegEx Match {}'.format(tweet_text))
+        # print('get_inc_type(): RegEx Match {}'.format(tweet_text))
         tweetType = tweet_text.replace('MMDA ALERT: ', '').replace(' AT ', '')
-        logging.info('get_inc_type(): Cleaned output {}'.format(tweetType))
+        # print('get_inc_type(): Cleaned output {}'.format(tweetType))
         parsed_incident_type = True
 
     if not parsed_incident_type:
         tweetType = ''
-        logging.info('get_inc_type(): Empty output')
+        # print('get_inc_type(): Empty output')
 
     return tweetType
 
@@ -143,7 +129,7 @@ def get_location(tweet_text, strip_dir=True):
 
     for match in matches:
         tweet_location = match.group(0)
-        logging.info('get_location(): RegEx Match {}'.format(tweet_location))
+        # print('get_location(): RegEx Match {}'.format(tweet_location))
 
         if any(direction in tweet_location for direction in directions):
             pattern2 = re.compile(r'AT\s+(.*?)(?:\s(NB|SB|EB|WB)\b|$)')
@@ -162,7 +148,7 @@ def get_location(tweet_text, strip_dir=True):
             for match3 in matches3:
                 tweet_location_final = match3.group(1)
 
-    logging.info('get_location(): Cleaned Location {}'.format(tweet_location_final))
+    # print('get_location(): Cleaned Location {}'.format(tweet_location_final))
     return tweet_location_final.replace('Ñ', 'N').strip()
 
 
@@ -170,10 +156,10 @@ def get_participants(tweet_text):
     """
     Extract participants from tweet.
     """
-    logging.info('get_participants(): Raw input {}'.format(tweet_text))
+    print('get_participants(): Raw input {}'.format(tweet_text))
     if ' INVOLVING' in tweet_text:
         tweet_participant = tweet_text.split(' INVOLVING')[1].split('AS OF')[0].strip()
-        logging.info('get_participants(): Cleaned output {}'.format(tweet_participant))
+        print('get_participants(): Cleaned output {}'.format(tweet_participant))
     else:
         tweet_participant = ''
     return tweet_participant
@@ -186,25 +172,25 @@ def get_rally_location(tweet_text):
     parsed_rally_location = False
     pattern = re.compile(r' AT\s*(.*)\s*MORE OR')
     matches = pattern.finditer(tweet_text)
-    logging.info('get_rally_location(): Raw input {}'.format(tweet_text))
+    # print('get_rally_location(): Raw input {}'.format(tweet_text))
 
     for match in matches:
         tweetLocation = match.group(0).replace(' AT ', '').replace(' MORE OR', '')
         tweetLocation = strip_direction(tweetLocation)
-        logging.info('get_rally_location(): Cleaned string {}'.format(tweetLocation))
+        # print('get_rally_location(): Cleaned string {}'.format(tweetLocation))
 
         if any(direction in tweetLocation for direction in directions):
             pattern2 = re.compile(r'AT\s+(.*?)(?:\s(NB|SB|EB|WB)\b|$)')
             matches2 = pattern2.finditer(tweetLocation)
             for match2 in matches2:
                 tweetLocation = match2.group(1)
-            logging.info('get_location(): Cleaned Location {}'.format(tweetLocation))
+            # print('get_location(): Cleaned Location {}'.format(tweetLocation))
 
         parsed_rally_location = True
 
     if not parsed_rally_location:
         tweetLocation = ''
-        logging.info('get_rally_location(): Empty match')
+        # print('get_rally_location(): Empty match')
 
     return tweetLocation
 
@@ -216,11 +202,11 @@ def get_rally_participants(tweet_text):
     parsed_rally_participant = False
     pattern = re.compile(r'MORE OR LESS \d+ PAX')
     matches = pattern.finditer(tweet_text)
-    logging.info('get_rally_participants(): Raw input {}'.format(tweet_text))
+    # print('get_rally_participants(): Raw input {}'.format(tweet_text))
 
     for match in matches:
         tweet_participant = match.group(0).replace('MORE OR LESS ', '')
-        logging.info('get_rally_participants(): Cleaned output {}'.format(tweet_participant))
+        # print('get_rally_participants(): Cleaned output {}'.format(tweet_participant))
         parsed_rally_participant = True
 
     if not parsed_rally_participant:
@@ -234,19 +220,19 @@ def get_stalled_participants(tweet_text):
     Extract stalled participants from tweet.
     """
     parsed_stalled_participants = False
-    logging.info('get_stalled_participants(): Raw input {}'.format(tweet_text))
+    # print('get_stalled_participants(): Raw input {}'.format(tweet_text))
     pattern = re.compile(r'STALLED [A-Z0-9\-\s]+DUE')
     matches = pattern.finditer(tweet_text)
 
     for match in matches:
         tweet_text = match.group(0).replace('STALLED ', '').replace(' DUE', '').strip()
         tweet_participants = tweet_text
-        logging.info('get_stalled_participants(): Cleaned String {}'.format(tweet_participants))
+        # print('get_stalled_participants(): Cleaned String {}'.format(tweet_participants))
         parsed_stalled_participants = True
 
     if not parsed_stalled_participants:
         tweet_participants = ''
-        logging.info('get_stalled_participants(): Empty Match')
+        # print('get_stalled_participants(): Empty Match')
 
     return tweet_participants
 
@@ -255,22 +241,36 @@ def get_location_details_raw(location):
 
     return (latitude, longitude, city, accuracy)
 
-def normalize_date(created_at):
-    if isinstance(created_at, date):
-        return created_at
-    if isinstance(created_at, datetime):
-        return created_at.date()
-    if isinstance(created_at, str):
-        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y", ...):
+def get_date_details(created_at):
+    parsed_date = None
+
+    if isinstance(created_at, date) and not isinstance(created_at, datetime):
+        parsed_date = created_at
+    elif isinstance(created_at, datetime):
+        parsed_date = created_at.date()
+    elif isinstance(created_at, str):
+        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y"):
             try:
-                return datetime.strptime(created_at.strip(), fmt).date()
+                parsed_date = datetime.strptime(created_at.strip(), fmt).date()
+                break
             except ValueError:
-                pass
-    return None
+                continue
+
+    if parsed_date is None:
+        return None
+
+    return (
+        parsed_date,                            # full date
+        parsed_date.year,                       # year
+        parsed_date.month,                      # month
+        parsed_date.day,                        # day of month
+        parsed_date.isocalendar()[1],           # ISO week number
+        parsed_date.weekday()                   # day of week (e.g., Monday)
+    )
 
 def post_parser(content, created_at, source):
+    date, year, month, day, week, weekday = get_date_details(created_at)
     time = get_time(content)
-    date = normalize_date(created_at)
     lanes_blocked = get_lanes_blocked(content)
     inc_type = get_inc_type(content)
     direction = get_direction(content)

@@ -1,4 +1,3 @@
-import json
 import os
 import requests
 import re
@@ -26,6 +25,11 @@ accuracy_map = {
     "Low": 0
 }
 
+def load_locations_df(spark, table_id):
+    return spark.read.format("bigquery") \
+                .option('table', table_id) \
+                .load()
+
 def get_locations_from_bq(df_locations, raw_locations):
     return df_locations.join(raw_locations, on="Location", how='right')
 
@@ -41,24 +45,20 @@ def get_missing_locations(enriched_df):
 
     return missing_locations
 
-
-def update_locations_bq(spark, existing_locations_df, new_locations_df, table_id):
-    spark.conf.set('temporaryGcsBucket', 'tempresolvedlocation')
-
-    deduped_df = new_locations_df.join(
-        existing_locations_df,
-        on='Location',
-        how='left_anti'  # keep only rows not in existing_df
-    )
+def update_locations_bq(new_locations_df, staging_locations_table_id, project_id, dataset):
+    # upload new locations to staging table in bq
+    new_locations_df.write \
+            .format("bigquery") \
+            .option('temporaryGcsBucket', 'tempresolvedlocation') \
+            .option('table', staging_locations_table_id) \
+            .mode("append") \
+            .save()
     
-    if deduped_df.count() > 0:
-        deduped_df.write \
-                .format("bigquery") \
-                .option('table', table_id) \
-                .mode("append") \
-                .save()
-    else:
-        print("No new unique rows to append.")
+    # Call the stored procedure to upsert data from staging to final table
+    client = bigquery.Client()
+    query = f"CALL `{project_id}.{dataset}.upsert_locations`()"
+    client.query(query).result() 
+
 
 def get_geocode(location):
     url = "https://atlas.microsoft.com/geocode"
@@ -85,76 +85,7 @@ def get_geocode(location):
     city = data['features'][0]['properties']['address']['locality']
     accuracy = accuracy_map.get(data['features'][0]['properties']['confidence'], 0)
 
-    return (latitude, longitude, city, accuracy)
-
-# def get_batch_geocode(spark, locations):
-#     body = create_batch_items(locations)
-
-#     url = 'https://atlas.microsoft.com/geocode:batch'
-
-#     params = {
-#         "api-version": "2026-01-01",
-#     }
-    
-#     headers = {
-#         "Accept-Language": "en-US",
-#         "x-ms-client-id": CLIENT_ID,
-#         "subscription-key": KEY
-#     }
-
-#     response = requests.post(url=url, params=params, headers=headers, json=body)
-#     data = response.json()
-#     items = data['batchItems']
-
-#     details = []
-#     for item in items:
-#         feature = item.get('features', [None])[0] if item.get('features') else None
-
-#         if feature:
-#             geometry = feature.get('geometry', None)
-#             if geometry is None:
-#                 longitude = latitude = 0.0
-                
-#             coordinates = geometry.get('coordinates', [0, 0])
-#             longitude = float(coordinates[0])
-#             latitude = float(coordinates[1])
-
-#             properties = feature.get('properties', None)
-#             address = properties.get('address', '')
-#             city = address.get('locality', get_reverse_geocode(longitude, latitude))
-
-#             # print(json.dumps(address, indent=2))
-
-#             confidence = properties.get('confidence', None)
-#             accuracy = float(accuracy_map.get(confidence, 0))
-#         else:
-#             city = ''
-#             longitude = latitude = 0.0
-#             accuracy = 0.0
-        
-#         if city in ["Pasay", "Pasig", "Makati"]:
-#             city = city.strip() + " City"
-        
-#         if city == "Kalookan City":
-#             city = "Caloocan City"
-
-#         pattern = re.compile(r'Para.*aque')
-#         if re.fullmatch(pattern, city):
-#             city = "Paranaque"
-        
-#         details.append({
-#             "Longitude": longitude,
-#             "Latitude": latitude,
-#             "City": city,
-#             "High_Accuracy": accuracy
-#         })
-    
-#     output_details = list(zip(locations, details))
-#     flattened_data = [(detail["City"], loc, detail["Latitude"], detail["Longitude"], detail["High_Accuracy"]) for loc, detail in output_details]
-
-#     # Create DataFrame
-#     df = spark.createDataFrame(flattened_data, LocationDetailSchema)
-#     return df
+    return (latitude, longitude, city.upper(), accuracy)
 
 def get_batch_geocode(spark, locations):
     batch_size = 95  # maximum items per batch
@@ -206,7 +137,7 @@ def get_batch_geocode(spark, locations):
 
             all_details.append({
                 "Location": batch_locations[idx],
-                "City": city,
+                "City": city.upper(),
                 "Latitude": latitude,
                 "Longitude": longitude,
                 "High_Accuracy": accuracy
@@ -257,4 +188,4 @@ def get_reverse_geocode(longitude, latitude):
     data = response.json()
     city = data['features'][0]['properties']['address']['locality']
 
-    return city
+    return city.upper()

@@ -46,3 +46,80 @@ resource "google_bigquery_dataset" "mnl_accident_dataset" {
   dataset_id = var.bq_dataset_name
   location   = var.location
 }
+
+resource "google_bigquery_table" "locations_staging_table" {
+  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+  table_id   = "locations_staging"
+  project = var.project
+
+  deletion_protection = false
+
+  schema     = jsonencode([
+    {
+      name = "city"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "location"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "latitude"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    },
+    {
+      name = "longitude"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    },
+    {
+      name = "high_accuracy"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    }
+  ])
+}
+resource "google_bigquery_table" "locations_table" {
+  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+  table_id   = "locations"
+  project = var.project
+
+  deletion_protection = false
+
+  schema     = jsonencode([
+    {
+      name = "locationid"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "city"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "location"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "latitude"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    },
+    {
+      name = "longitude"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    },
+    {
+      name = "high_accuracy"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    }
+  ])
+}
+
