@@ -92,11 +92,13 @@ def main():
         df_full_parsed = get_locations_from_bq(df_locations, df_full_parsed)
 
     df_final = df_full_parsed.select(
-        'date', 'time', 'city', 'location',
+        'date', 'year', 'month', 'day', 'week', 'weekday', 
+        'time', 'hour', 'city', 'location',
         'latitude', 'longitude', 'high_accuracy',
         'direction', 'type', 'lanes_blocked',
         'involved', 'tweet', 'source'
     )
+    
     # upload to gcs as parquet
     gcs_upload_parquet(bucket_name, clean_folder, df_final)
     print("Kaggle processing complete.")

@@ -26,7 +26,13 @@ def partial_parse_raw_data(df_raw):
 
     PartialPostSchema = StructType([
         StructField('date', DateType(), True),
+        StructField('year', IntegerType(), True),
+        StructField('month', IntegerType(), True),
+        StructField('day', IntegerType(), True),
+        StructField('week', IntegerType(), True),
+        StructField('weekday', IntegerType(), True),
         StructField('time', StringType(), True),
+        StructField('hour', IntegerType(), True),
         StructField('location', StringType(), True),
         StructField('direction', StringType(), True),
         StructField('type', StringType(), True),
@@ -48,7 +54,13 @@ def partial_parse_raw_data(df_raw):
     
     return df_temp.select(
         F.col("parsed.date").alias("date"),
+        F.col("parsed.year").alias("year"),
+        F.col("parsed.month").alias("month"),
+        F.col("parsed.day").alias("day"),
+        F.col("parsed.week").alias("week"),
+        F.col("parsed.weekday").alias("weekday"),
         F.col("parsed.time").alias("time"),
+        F.col("parsed.hour").alias("hour"),
         F.col("parsed.location").alias("location"),
         F.col("parsed.direction").alias("direction"),
         F.col("parsed.type").alias("type"),

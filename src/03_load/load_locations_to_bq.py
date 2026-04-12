@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from google.cloud import bigquery
-from litellm import query
+# from litellm import query
 
 load_dotenv()
 

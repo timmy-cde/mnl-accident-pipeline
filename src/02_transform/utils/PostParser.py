@@ -48,11 +48,12 @@ def get_time(tweet_text):
     try:
         time_obj = datetime.strptime(f"{hour:02d}:{minute:02d} {meridiem}", '%I:%M %p')
         time_24 = time_obj.strftime('%H:%M')
+        hour_24 = time_obj.hour
         # print('get_time(): Parsed output {}'.format(time_24))
-        return time_24
+        return (time_24, hour_24)
     except ValueError:
-        print('get_time(): Failed to parse time {}'.format(match.group(0)))
-        return ''
+        # print('get_time(): Failed to parse time {}'.format(match.group(0)))
+        return ('', '')
 
 
 def get_lanes_blocked(tweet_text):
@@ -156,10 +157,10 @@ def get_participants(tweet_text):
     """
     Extract participants from tweet.
     """
-    print('get_participants(): Raw input {}'.format(tweet_text))
+    # print('get_participants(): Raw input {}'.format(tweet_text))
     if ' INVOLVING' in tweet_text:
         tweet_participant = tweet_text.split(' INVOLVING')[1].split('AS OF')[0].strip()
-        print('get_participants(): Cleaned output {}'.format(tweet_participant))
+        # print('get_participants(): Cleaned output {}'.format(tweet_participant))
     else:
         tweet_participant = ''
     return tweet_participant
@@ -270,7 +271,7 @@ def get_date_details(created_at):
 
 def post_parser(content, created_at, source):
     date, year, month, day, week, weekday = get_date_details(created_at)
-    time = get_time(content)
+    time_24, hour_24 = get_time(content)
     lanes_blocked = get_lanes_blocked(content)
     inc_type = get_inc_type(content)
     direction = get_direction(content)
@@ -285,4 +286,4 @@ def post_parser(content, created_at, source):
         location = get_location(content)
         participants = get_participants(content)
 
-    return (date, time, location, direction, inc_type, lanes_blocked, participants, content, source)
+    return (date, year, month, day, week, weekday, time_24, hour_24, location, direction, inc_type, lanes_blocked, participants, content, source)
