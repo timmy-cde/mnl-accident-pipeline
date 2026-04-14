@@ -24,6 +24,16 @@ RawSchema = StructType([
 ])
 
 def initialize(app_name):
+    """Initialize Spark, GCS client, and location references for the transform pipeline.
+
+    Args:
+        app_name: Name for the Spark application.
+
+    Returns:
+        tuple: spark, gcs_client, project_id, dataset, locations_table_id,
+               staging_locations_table_id, bucket_name, raw_folder,
+               clean_folder, scrape_folder, df_locations
+    """
     spark = SparkSession.builder \
             .master("local[*]") \
             .appName(app_name) \
@@ -148,22 +158,26 @@ def process_single_file(spark, gcs_client, bucket_name, raw_filename, df_locatio
         # reload updated locations
         df_locations = load_locations_df(spark, locations_table_id)
 
-        df_full_parsed = df_full_parsed.drop("city", "latitude", "longitude", "high_accuracy")
+        df_full_parsed = df_full_parsed.drop("city", "latitude", "longitude", "accuracy")
         df_full_parsed = get_locations_from_bq(df_locations, df_full_parsed)
 
     df_final = df_full_parsed.select(
         'date', 'year', 'month', 'day', 'week', 'weekday', 
         'time', 'hour', 'city', 'location',
-        'latitude', 'longitude', 'high_accuracy',
+        'latitude', 'longitude', 'accuracy',
         'direction', 'type', 'lanes_blocked',
-        'involved', 'tweet', 'source'
+        'involved', 'post', 'link'
     )
 
     return df_final
 
 
 def run_daily_transform():
-    """Run daily transformation for yesterday's data"""
+    """Run daily transformation for yesterday's data.
+
+    This function initializes Spark and GCS, locates yesterday's raw scrape file,
+    transforms it, and uploads the cleaned parquet output to GCS.
+    """
     spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Daily)')
 
     raw_filename = get_current_raw_filename(scrape_folder)
@@ -184,7 +198,16 @@ def run_daily_transform():
 
 
 def run_batch_transform(start_date, end_date):
-    """Run batch transformation for a date range"""
+    """Run batch transformation for a specified date range.
+
+    Args:
+        start_date: Start date in YYYY-MM-DD format.
+        end_date: End date in YYYY-MM-DD format.
+
+    This function initializes Spark and GCS, generates the list of raw filenames
+    for the requested date range, processes each file, and uploads cleaned parquet
+    outputs to GCS.
+    """
     spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Batch)')
 
     filenames = generate_filenames(scrape_folder, start_date, end_date)

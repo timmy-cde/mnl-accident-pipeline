@@ -38,8 +38,8 @@ def partial_parse_raw_data(df_raw):
         StructField('type', StringType(), True),
         StructField('lanes_blocked', IntegerType(), True),
         StructField('involved', StringType(), True),
-        StructField('tweet', StringType(), True),
-        StructField('source', StringType(), True),
+        StructField('post', StringType(), True),
+        StructField('link', StringType(), True),
     ])
         
     post_parser_udf = F.udf(post_parser, PartialPostSchema)
@@ -66,6 +66,6 @@ def partial_parse_raw_data(df_raw):
         F.col("parsed.type").alias("type"),
         F.col("parsed.lanes_blocked").alias("lanes_blocked"),
         F.col("parsed.involved").alias("involved"),
-        F.col("parsed.tweet").alias("tweet"),
-        F.col("parsed.source").alias("source")
+        F.col("parsed.post").alias("post"),
+        F.col("parsed.link").alias("link")
     )

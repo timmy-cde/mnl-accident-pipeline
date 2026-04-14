@@ -1,15 +1,14 @@
 import os
 from dotenv import load_dotenv
 from google.cloud import bigquery
-# from litellm import query
 
 load_dotenv()
 
 def upload_to_bq(uri, project_id, dataset, job_config):
     client = bigquery.Client()
 
-    staging_table_id = f"{project_id}.{dataset}.locations_staging"
-    final_table_id = f"{project_id}.{dataset}.locations"
+    staging_table_id = f"{project_id}.{dataset}.staging_locations"
+    final_table_id = f"{project_id}.{dataset}.dim_locations"
 
     load_job = client.load_table_from_uri(
         uri, staging_table_id, job_config=job_config
@@ -20,7 +19,7 @@ def upload_to_bq(uri, project_id, dataset, job_config):
 
     # Get the staging table to check the number of rows loaded
     staging_table = client.get_table(staging_table_id)
-    print("Loaded {} rows.".format(staging_table.num_rows))
+    print(f"Loaded {staging_table.num_rows} rows in staging_locations table.")
 
     # Call the stored procedure to upsert data from staging to final table
     query = f"CALL `{project_id}.{dataset}.upsert_locations`()"
@@ -30,7 +29,7 @@ def upload_to_bq(uri, project_id, dataset, job_config):
     
     # Get the final table to check the number of rows
     final_table = client.get_table(final_table_id)
-    print("Loaded {} rows.".format(final_table.num_rows))
+    print(f"Loaded {final_table.num_rows} rows in dim_locations table.")
 
 
 def main():

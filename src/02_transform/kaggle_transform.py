@@ -88,15 +88,15 @@ def main():
         df_locations = load_locations_df(spark, locations_table_id)
 
         # re-join from df_full_parsed
-        df_full_parsed = df_full_parsed.drop("city", "latitude", "longitude", "high_accuracy")
+        df_full_parsed = df_full_parsed.drop("city", "latitude", "longitude", "accuracy")
         df_full_parsed = get_locations_from_bq(df_locations, df_full_parsed)
 
     df_final = df_full_parsed.select(
         'date', 'year', 'month', 'day', 'week', 'weekday', 
         'time', 'hour', 'city', 'location',
-        'latitude', 'longitude', 'high_accuracy',
+        'latitude', 'longitude', 'accuracy',
         'direction', 'type', 'lanes_blocked',
-        'involved', 'tweet', 'source'
+        'involved', 'post', 'link'
     )
     
     # upload to gcs as parquet
