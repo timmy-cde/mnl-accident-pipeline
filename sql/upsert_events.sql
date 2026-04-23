@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE mnl_accident_pipeline_dataset.upsert_dates()
+CREATE OR REPLACE PROCEDURE mnl_accident_pipeline_dataset.upsert_events()
 BEGIN
 
   BEGIN TRANSACTION;
