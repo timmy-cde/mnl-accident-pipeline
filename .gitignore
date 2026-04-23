@@ -29,3 +29,6 @@ config/*.json
 # kaggle
 .complete
 .data
+
+
+.vscode/

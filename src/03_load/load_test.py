@@ -19,7 +19,7 @@ def init():
     project_id = os.getenv("PROJECT_ID")
     dataset = os.getenv("DATASET")
     bucket_name = os.getenv('BUCKET_NAME')
-    clean_folder = os.getenv('CLEANED_FOLDER_NAME')
+    clean_folder = 'cleaned'
 
     bq_client = bigquery.Client()
     gcs_client = storage.Client()
@@ -106,7 +106,7 @@ def upload_to_bq(uri, project_id, dataset, bq_client, gcs_client, job_config):
         print(f"No files found at {uri}. Skipping load.")
         return
 
-    staging_table_id = f"{project_id}.{dataset}.staging_enriched"
+    staging_table_id = f"{project_id}.{dataset}.test_staging_enriched"
 
     load_job = bq_client.load_table_from_uri(
         uri, staging_table_id, job_config=job_config
@@ -156,7 +156,7 @@ def load_historical_data(start_date, end_date):
         month = current_date.strftime("%m")
         day = current_date.strftime("%d")
 
-        enriched_uri = f"gs://{bucket_name}/{clean_folder}/date={year}-{month}-{day}/*.parquet"
+        enriched_uri = f"gs://{bucket_name}/{clean_folder}/Date={year}-{month}-{day}/*.parquet"
         enriched_uris.append(enriched_uri)
 
         current_date += timedelta(days=1)
@@ -172,8 +172,8 @@ def main():
     Main entry point. Runs in daily mode by default, or batch mode if
     START_DATE and END_DATE environment variables are set.
     """
-    start_date = os.getenv("START_DATE")
-    end_date = os.getenv("END_DATE")
+    start_date = "2026-03-15"
+    end_date = "2026-03-29"
 
     if start_date and end_date:
         load_historical_data(start_date, end_date)

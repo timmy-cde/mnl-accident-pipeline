@@ -6,7 +6,7 @@ BEGIN
   INSERT INTO mnl_accident_pipeline_dataset.dim_dates (date, year, month, day, week, weekday)
 
   WITH staging AS (
-    SELECT
+    SELECT DISTINCT
       date, 
       year, 
       month, 
@@ -26,6 +26,7 @@ BEGIN
   FROM staging s
   LEFT JOIN mnl_accident_pipeline_dataset.dim_dates d
     ON s.date = d.date
+  WHERE d.date IS NULL;
 
 COMMIT TRANSACTION;
 

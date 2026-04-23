@@ -289,49 +289,18 @@ resource "google_bigquery_table" "direction_table" {
   deletion_protection = false
   table_constraints {
     primary_key { 
-      columns = ["id"] 
+      columns = ["short_name"] 
     }
   }
 
   schema     = jsonencode([
     {
-      name = "id"
+      name = "short_name"
       type = "STRING",
       mode = "NULLABLE"
     },
     {
       name = "full_name"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
-      name = "short_name"
-      type = "STRING",
-      mode = "NULLABLE"
-    }
-  ])
-}
-
-resource "google_bigquery_table" "event_type_table" {
-  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-  table_id   = "dim_event_type"
-  project = var.project
-  
-  deletion_protection = false
-  table_constraints {
-    primary_key { 
-      columns = ["id"] 
-    }
-  }
-
-  schema     = jsonencode([
-    {
-      name = "id"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
-      name = "type"
       type = "STRING",
       mode = "NULLABLE"
     }
@@ -379,20 +348,6 @@ resource "google_bigquery_table" "fact_events_table" {
       }
     }
     foreign_keys {
-      name = "fk_event_type_id"
-
-      referenced_table {
-        project_id = google_bigquery_dataset.mnl_accident_dataset.project
-        dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-        table_id   = google_bigquery_table.event_type_table.table_id
-      }
-
-      column_references {
-        referencing_column = "event_type_id"
-        referenced_column = "id"
-      }
-    }
-    foreign_keys {
       name = "fk_direction_id"
 
       referenced_table {
@@ -403,7 +358,7 @@ resource "google_bigquery_table" "fact_events_table" {
 
       column_references {
         referencing_column = "direction_id"
-        referenced_column = "id"
+        referenced_column = "short_name"
       }
     }
   }
@@ -420,12 +375,22 @@ resource "google_bigquery_table" "fact_events_table" {
       mode = "NULLABLE"
     },
     {
+      name = "time"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "hour"
+      type = "INTEGER",
+      mode = "NULLABLE"
+    },
+    {
       name = "location_id"
       type = "STRING",
       mode = "NULLABLE"
     },
     {
-      name = "event_type_id"
+      name = "event_type"
       type = "STRING",
       mode = "NULLABLE"
     },
@@ -437,6 +402,11 @@ resource "google_bigquery_table" "fact_events_table" {
     {
       name = "lanes_blocked"
       type = "INTEGER",
+      mode = "NULLABLE"
+    },
+    {
+      name = "involved"
+      type = "STRING",
       mode = "NULLABLE"
     },
     {
