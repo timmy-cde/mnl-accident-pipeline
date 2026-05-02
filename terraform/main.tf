@@ -143,38 +143,18 @@ resource "google_bigquery_table" "enriched_table" {
       mode = "NULLABLE"
     },
     {
-      name = "year"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "month"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "day"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "week"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "weekday"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
       name = "time"
       type = "STRING",
       mode = "NULLABLE"
     },
     {
-      name = "hour"
-      type = "INTEGER",
+      name = "event_timestamp"
+      type = "TIMESTAMP",
+      mode = "NULLABLE"
+    },
+    {
+      name = "location_id"
+      type = "STRING",
       mode = "NULLABLE"
     },
     {
@@ -235,52 +215,6 @@ resource "google_bigquery_table" "enriched_table" {
   ])
 }
 
-resource "google_bigquery_table" "dates_table" {
-  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-  table_id   = "dim_dates"
-  project = var.project
-
-  deletion_protection = false
-  table_constraints {
-    primary_key { 
-      columns = ["date"] 
-    }
-  }
-
-  schema     = jsonencode([
-    {
-      name = "date"
-      type = "DATE",
-      mode = "NULLABLE"
-    },
-    {
-      name = "year"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "month"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "day"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "week"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    },
-    {
-      name = "weekday"
-      type = "INTEGER",
-      mode = "NULLABLE"
-    }
-  ])
-}
-
 resource "google_bigquery_table" "direction_table" {
   dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
   table_id   = "dim_direction"
@@ -320,20 +254,6 @@ resource "google_bigquery_table" "fact_events_table" {
     }
 
     foreign_keys {
-      name = "fk_date_id"
-
-      referenced_table {
-        project_id = google_bigquery_dataset.mnl_accident_dataset.project
-        dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-        table_id   = google_bigquery_table.dates_table.table_id
-      }
-
-      column_references {
-        referencing_column = "date_id"
-        referenced_column = "date"
-      }
-    }
-    foreign_keys {
       name = "fk_location_id"
 
       referenced_table {
@@ -370,18 +290,8 @@ resource "google_bigquery_table" "fact_events_table" {
       mode = "NULLABLE"
     },
     {
-      name = "date_id"
-      type = "DATE",
-      mode = "NULLABLE"
-    },
-    {
-      name = "time"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
-      name = "hour"
-      type = "INTEGER",
+      name = "event_timestamp"
+      type = "TIMESTAMP",
       mode = "NULLABLE"
     },
     {

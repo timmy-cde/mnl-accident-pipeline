@@ -3,7 +3,7 @@ BEGIN
 
   BEGIN TRANSACTION;
 
-  INSERT INTO mnl_accident_pipeline_dataset.fact_events (id, date_id, time, hour, location_id, event_type, direction_id, lanes_blocked, involved, post, link)
+  INSERT INTO mnl_accident_pipeline_dataset.fact_events (id, event_timestamp, location_id, event_type, direction_id, lanes_blocked, involved, post, link)
 
   WITH staging AS (
         SELECT
@@ -16,13 +16,8 @@ BEGIN
                 IFNULL(SAFE_CAST(longitude AS STRING), ''),
                 IFNULL(SAFE_CAST(post AS STRING), '')
             ))) AS id,
-            date as date_id,
-            time,
-            hour,
-            city,
-            location,
-            latitude,
-            longitude,
+            event_timestamp,
+            location_id,
             CASE
                 WHEN type LIKE 'STALLED%' THEN 'STALLED VEHICLE'
                 WHEN type LIKE 'ROAD%' THEN 'ROAD CRASH'
@@ -41,10 +36,8 @@ BEGIN
     agg AS (
         SELECT
             s.id,
-            dt.date AS date_id,
-            s.time,
-            s.hour,
-            loc.location_id AS location_id,
+            s.event_timestamp,
+            s.location_id,
             s.event_type,
             IFNULL(dir.short_name, 'UNKNOWN') AS direction_id,
             s.lanes_blocked,
@@ -53,25 +46,14 @@ BEGIN
             s.link
         FROM staging s
 
-        LEFT JOIN mnl_accident_pipeline_dataset.dim_dates dt
-        ON s.date_id = dt.date
-
-        LEFT JOIN mnl_accident_pipeline_dataset.dim_locations loc
-        ON s.city = loc.city AND
-            s.location = loc.location AND
-            s.latitude = loc.latitude AND
-            s.longitude = loc.longitude
-
         LEFT JOIN mnl_accident_pipeline_dataset.dim_direction dir
-        ON s.direction = dir.short_name
+            ON s.direction = dir.short_name
 
     )
 
     SELECT
         a.id,
-        a.date_id,
-        a.time,
-        a.hour,
+        a.event_timestamp,
         a.location_id,
         a.event_type,
         a.direction_id,

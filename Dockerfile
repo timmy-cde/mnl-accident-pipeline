@@ -37,8 +37,8 @@ ENV AIRFLOW_HOME=/opt/airflow
 USER airflow
 
 # Copy Python requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.prod.txt .
+RUN pip install --no-cache-dir -r requirements.prod.txt
 
 # Switch to root to install OS dependencies
 USER root

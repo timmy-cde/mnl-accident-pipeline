@@ -12,11 +12,11 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 API_VERSION = os.getenv('API_VERSION')
 
 LocationDetailSchema = StructType([
-    StructField('City', StringType(), True),
-    StructField('Location', StringType(), True),
-    StructField('Latitude', DoubleType(), True),
-    StructField('Longitude', DoubleType(), True),
-    StructField('High_Accuracy', DoubleType(), True)
+    StructField('city', StringType(), True),
+    StructField('location', StringType(), True),
+    StructField('latitude', DoubleType(), True),
+    StructField('longitude', DoubleType(), True),
+    StructField('accuracy', DoubleType(), True)
 ])
 
 accuracy_map = {
@@ -31,11 +31,11 @@ def load_locations_df(spark, table_id):
                 .load()
 
 def get_locations_from_bq(df_locations, raw_locations):
-    return df_locations.join(raw_locations, on="Location", how='right')
+    return df_locations.join(raw_locations, on="location", how='right')
 
 def get_missing_locations(enriched_df):
     # Get null values in City
-    missing_df = enriched_df.filter(F.col('City').isNull())
+    missing_df = enriched_df.filter(F.col('city').isNull())
 
     # Get unique values 
     missing_locations_df = missing_df.select("location").distinct()
@@ -87,6 +87,7 @@ def get_geocode(location):
 
     return (latitude, longitude, city.upper(), accuracy)
 
+
 def get_batch_geocode(spark, locations):
     batch_size = 95  # maximum items per batch
     all_details = []
@@ -136,16 +137,16 @@ def get_batch_geocode(spark, locations):
                 city = "Paranaque"
 
             all_details.append({
-                "Location": batch_locations[idx],
-                "City": city.upper(),
-                "Latitude": latitude,
-                "Longitude": longitude,
-                "High_Accuracy": accuracy
+                "location": batch_locations[idx],
+                "city": city.upper(),
+                "latitude": latitude,
+                "longitude": longitude,
+                "accuracy": accuracy
             })
 
     # Flatten data for Spark DataFrame
     flattened_data = [
-        (d["City"], d["Location"], d["Latitude"], d["Longitude"], d["High_Accuracy"])
+        (d["city"], d["location"], d["latitude"], d["longitude"], d["accuracy"])
         for d in all_details
     ]
 

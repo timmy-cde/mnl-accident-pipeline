@@ -154,9 +154,9 @@ def load_historical_data(start_date, end_date, batch_size=14):
     staging_table_id = f"{project_id}.{dataset}.staging_enriched"
     staging_table = bq_client.get_table(staging_table_id)
     
-    print(f"\n✓ Historical load completed for {len(enriched_uris)} days")
-    print(f"✓ Total rows in staging table: {staging_table.num_rows}")
-    print(f"✓ Date range: {start_date} to {end_date}")
+    print(f"\nHistorical load completed for {len(enriched_uris)} days")
+    print(f"Total rows in staging table: {staging_table.num_rows}")
+    print(f"Date range: {start_date} to {end_date}")
 
 
 def main():

@@ -47,8 +47,8 @@ def main():
 
     project_id = os.getenv("PROJECT_ID")
     dataset = os.getenv("DATASET")
-    locations_table_id = f"{project_id}:{dataset}.locations"
-    staging_locations_table_id = f"{project_id}:{dataset}.locations_staging"
+    locations_table_id = f"{project_id}:{dataset}.dim_locations"
+    staging_locations_table_id = f"{project_id}:{dataset}.staging_locations"
     bucket_name = os.getenv('BUCKET_NAME')
     raw_folder = os.getenv('RAW_FOLDER_NAME')
     clean_folder = os.getenv('CLEANED_FOLDER_NAME')
@@ -92,9 +92,8 @@ def main():
         df_full_parsed = get_locations_from_bq(df_locations, df_full_parsed)
 
     df_final = df_full_parsed.select(
-        'date', 'year', 'month', 'day', 'week', 'weekday', 
-        'time', 'hour', 'city', 'location',
-        'latitude', 'longitude', 'accuracy',
+        'date',  'time', 'timestamp', 
+        'city', 'location', 'latitude', 'longitude', 'accuracy',
         'direction', 'type', 'lanes_blocked',
         'involved', 'post', 'link'
     )

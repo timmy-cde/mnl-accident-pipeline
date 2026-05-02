@@ -7,7 +7,8 @@ from google.cloud import storage
 
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, DateType
+from pyspark.sql.window import Window
+from pyspark.sql.types import DoubleType, StructType, StructField, IntegerType, StringType, DateType
 
 from utils.LocationFunctions import load_locations_df, get_locations_from_bq, get_missing_locations, get_batch_geocode, update_locations_bq
 from utils.Common import gcs_file_read, gcs_upload_parquet, partial_parse_raw_data
@@ -17,17 +18,34 @@ bigquery_connector_path = '../../config/spark-bigquery-with-dependencies_2.12-0.
 
 load_dotenv()
 
-RawSchema = StructType([
+ScrapedRawSchema = StructType([
     StructField('content', StringType(), True),
     StructField('tweetlinkid', StringType(), True),
     StructField('created_at', DateType(), True),
 ])
 
-def initialize(app_name):
+KaggleRawSchema = StructType([
+    StructField('Date', DateType(), True),
+    StructField('Time', StringType(), True),
+    StructField('City', StringType(), True),
+    StructField('Location', StringType(), True),
+    StructField('Latitude', DoubleType(), True),
+    StructField('Longitude', DoubleType(), True),
+    StructField('High_Accuracy', DoubleType(), True),
+    StructField('Direction', StringType(), True),
+    StructField('Type', StringType(), True),
+    StructField('Lanes_Blocked', IntegerType(), True),
+    StructField('Involved', StringType(), True),
+    StructField('Tweet', StringType(), True),
+    StructField('Source', StringType(), True),
+])
+
+def initialize(app_name, data_source='scraped'):
     """Initialize Spark, GCS client, and location references for the transform pipeline.
 
     Args:
         app_name: Name for the Spark application.
+        data_source: Data source type ('scraped' or 'kaggle').
 
     Returns:
         tuple: spark, gcs_client, project_id, dataset, locations_table_id,
@@ -46,8 +64,8 @@ def initialize(app_name):
 
     project_id = os.getenv("PROJECT_ID")
     dataset = os.getenv("DATASET")
-    locations_table_id = f"{project_id}:{dataset}.locations"
-    staging_locations_table_id = f"{project_id}:{dataset}.locations_staging"
+    locations_table_id = f"{project_id}:{dataset}.dim_locations"
+    staging_locations_table_id = f"{project_id}:{dataset}.staging_locations"
     bucket_name = os.getenv('BUCKET_NAME')
     raw_folder = os.getenv('RAW_FOLDER_NAME')
     clean_folder = os.getenv('CLEANED_FOLDER_NAME')
@@ -113,6 +131,62 @@ def get_current_raw_filename(scrape_folder):
     return filename
 
 
+def process_df(spark, df_raw, df_locations, locations_table_id, staging_locations_table_id, project_id, dataset):
+    """
+    Process a DataFrame through the transformation pipeline
+    
+    Args:
+        spark: SparkSession
+        df_raw: Raw DataFrame
+        df_locations: Locations DataFrame
+        locations_table_id: BigQuery locations table ID
+        staging_locations_table_id: BigQuery staging locations table ID
+        project_id: GCP project ID
+        dataset: BigQuery dataset name
+        
+    Returns:
+        Processed DataFrame
+    """
+    # parse
+    df_partial_parsed = partial_parse_raw_data(df_raw)
+
+    # handle missing timestamps
+    null_timestamp_count = df_partial_parsed.filter(F.col("event_timestamp").isNull()).count()
+    if null_timestamp_count > 0:
+        window = Window.rowsBetween(Window.unboundedPreceding, 0)
+        df_partial_parsed = df_partial_parsed.withColumn("time", F.last("time", ignorenulls=True).over(window))
+        df_partial_parsed = df_partial_parsed.withColumn(
+            "event_timestamp", 
+            F.to_timestamp(F.concat_ws(' ', F.col("date"), F.col("time")), "yyyy-MM-dd HH:mm")
+        )
+
+    # enrich from BQ
+    df_full_parsed = get_locations_from_bq(df_locations, df_partial_parsed)
+
+    # handle missing locations
+    missing_locations = get_missing_locations(df_full_parsed)
+
+    if len(missing_locations) != 0:
+        resolved_locations_df = get_batch_geocode(spark, missing_locations)
+
+        update_locations_bq(resolved_locations_df, staging_locations_table_id, project_id, dataset)
+
+        # reload updated locations
+        df_locations = load_locations_df(spark, locations_table_id)
+
+        df_full_parsed = df_full_parsed.drop("location_id", "city", "latitude", "longitude", "accuracy")
+        df_full_parsed = get_locations_from_bq(df_locations, df_full_parsed)
+
+    df_final = df_full_parsed.select(
+        'date', 'time', 'event_timestamp', 'location_id',
+        'city', 'location', 'latitude', 'longitude', 'accuracy',
+        'direction', 'type', 'lanes_blocked',
+        'involved', 'post', 'link'
+    )
+
+    return df_final
+
+
 def process_single_file(spark, gcs_client, bucket_name, raw_filename, df_locations, locations_table_id, staging_locations_table_id, project_id, dataset):
     """
     Process a single raw data file through the transformation pipeline
@@ -130,7 +204,6 @@ def process_single_file(spark, gcs_client, bucket_name, raw_filename, df_locatio
     Returns:
         Processed DataFrame or None if file doesn't exist
     """
-    # gcs_client = storage.Client()
     bucket = gcs_client.bucket(bucket_name)
     
     blob = storage.Blob(bucket=bucket, name=raw_filename)
@@ -139,44 +212,43 @@ def process_single_file(spark, gcs_client, bucket_name, raw_filename, df_locatio
         return None
 
     print(f"Processing: {raw_filename}")
-    df_raw = gcs_file_read(spark, bucket_name, raw_filename, RawSchema)
+    df_raw = gcs_file_read(spark, bucket_name, raw_filename, ScrapedRawSchema)
 
-    # parse
-    df_partial_parsed = partial_parse_raw_data(df_raw)
+    df_final = process_df(spark, df_raw, df_locations, locations_table_id, staging_locations_table_id, project_id, dataset)
 
-    # handle missing timestamps
+    return df_final
+
+
+def process_kaggle_file(spark, gcs_client, bucket_name, raw_filename, df_locations, locations_table_id, staging_locations_table_id, project_id, dataset):
+    """
+    Process the Kaggle raw data file through the transformation pipeline
     
+    Args:
+        spark: SparkSession
+        bucket_name: GCS bucket name
+        raw_filename: GCS path to raw file
+        df_locations: Locations DataFrame
+        locations_table_id: BigQuery locations table ID
+        staging_locations_table_id: BigQuery staging locations table ID
+        project_id: GCP project ID
+        dataset: BigQuery dataset name
+        
+    Returns:
+        Processed DataFrame or None if file doesn't exist
+    """
+    bucket = gcs_client.bucket(bucket_name)
+    
+    blob = storage.Blob(bucket=bucket, name=raw_filename)
+    if not blob.exists():
+        print(f"Skipping (not found): {raw_filename}")
+        return None
 
-    # enrich from BQ
-    df_full_parsed = get_locations_from_bq(df_locations, df_partial_parsed)
+    print(f"Processing: {raw_filename}")
+    df_raw = gcs_file_read(spark, bucket_name, raw_filename, KaggleRawSchema)
+    df_raw_specific = df_raw.select("Tweet", "Date", "Source")
+    df_raw_renamed = df_raw_specific.withColumnsRenamed({"Tweet": "content", "Date": "created_at", "Source": "tweetlinkid"})
 
-    # handle missing locations
-    missing_locations = get_missing_locations(df_full_parsed)
-
-    if len(missing_locations) != 0:
-        resolved_locations_df = get_batch_geocode(spark, missing_locations)
-
-        update_locations_bq(resolved_locations_df, staging_locations_table_id, project_id, dataset)
-
-        # reload updated locations
-        df_locations = load_locations_df(spark, locations_table_id)
-
-        df_full_parsed = df_full_parsed.drop("city", "latitude", "longitude", "accuracy")
-        df_full_parsed = get_locations_from_bq(df_locations, df_full_parsed)
-
-    # df_final = df_full_parsed.select(
-    #     'date', 'year', 'month', 'day', 'week', 'weekday', 
-    #     'time', 'hour', 'city', 'location',
-    #     'latitude', 'longitude', 'accuracy',
-    #     'direction', 'type', 'lanes_blocked',
-    #     'involved', 'post', 'link'
-    # )
-    df_final = df_full_parsed.select(
-        'date',  'time', 'timestamp', 
-        'city', 'location', 'latitude', 'longitude', 'accuracy',
-        'direction', 'type', 'lanes_blocked',
-        'involved', 'post', 'link'
-    )
+    df_final = process_df(spark, df_raw_renamed, df_locations, locations_table_id, staging_locations_table_id, project_id, dataset)
 
     return df_final
 
@@ -187,7 +259,7 @@ def run_daily_transform():
     This function initializes Spark and GCS, locates yesterday's raw scrape file,
     transforms it, and uploads the cleaned parquet output to GCS.
     """
-    spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Daily)')
+    spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Daily)', 'scraped')
 
     raw_filename = get_current_raw_filename(scrape_folder)
     
@@ -217,7 +289,7 @@ def run_batch_transform(start_date, end_date):
     for the requested date range, processes each file, and uploads cleaned parquet
     outputs to GCS.
     """
-    spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Batch)')
+    spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Batch)', 'scraped')
 
     filenames = generate_filenames(scrape_folder, start_date, end_date)
 
@@ -234,18 +306,51 @@ def run_batch_transform(start_date, end_date):
     print("Batch processing complete.")
 
 
+def run_kaggle_transform():
+    """Run transformation for Kaggle historical data.
+
+    This function initializes Spark and GCS, processes the Kaggle raw file,
+    transforms it, and uploads the cleaned parquet output to GCS.
+    """
+    spark, gcs_client, project_id, dataset, locations_table_id, staging_locations_table_id, bucket_name, raw_folder, clean_folder, scrape_folder, df_locations = initialize('Transform Stage (Kaggle)', 'kaggle')
+
+    kaggle_folder = f"{raw_folder}/kaggle"
+    raw_filename = f"{kaggle_folder}/kaggle_historical_data.csv"
+    
+    df_final = process_kaggle_file(
+        spark, gcs_client, bucket_name, raw_filename, df_locations,
+        locations_table_id, staging_locations_table_id, project_id, dataset
+    )
+    
+    if df_final is None:
+        print(f"{raw_filename} does not exist")
+        return
+
+    # upload to gcs as parquet
+    gcs_upload_parquet(bucket_name, clean_folder, df_final)
+
+    print("Kaggle processing complete.")
+
+
 def main():
     """
-    Main entry point. Runs in daily mode by default, or batch mode if
+    Main entry point. Runs scraped data transform by default, or kaggle if
+    DATA_SOURCE environment variable is set to 'kaggle'.
+    For scraped data, runs in daily mode by default, or batch mode if
     START_DATE and END_DATE environment variables are set.
     """
-    start_date = os.getenv("START_DATE")
-    end_date = os.getenv("END_DATE")
+    data_source = os.getenv("DATA_SOURCE", "scraped")
 
-    if start_date and end_date:
-        run_batch_transform(start_date, end_date)
+    if data_source == "kaggle":
+        run_kaggle_transform()
     else:
-        run_daily_transform()
+        start_date = os.getenv("START_DATE")
+        end_date = os.getenv("END_DATE")
+
+        if start_date and end_date:
+            run_batch_transform(start_date, end_date)
+        else:
+            run_daily_transform()
 
 
 if __name__ == "__main__":
