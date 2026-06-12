@@ -342,14 +342,17 @@ def main():
     data_source = os.getenv("DATA_SOURCE", "scraped")
 
     if data_source == "kaggle":
+        print("Running Kaggle Transform...")
         run_kaggle_transform()
     else:
         start_date = os.getenv("START_DATE")
         end_date = os.getenv("END_DATE")
 
         if start_date and end_date:
+            print(f"Running Batch Transform from {start_date} to {end_date}...")
             run_batch_transform(start_date, end_date)
         else:
+            print("Running Daily Transform...")
             run_daily_transform()
 
 

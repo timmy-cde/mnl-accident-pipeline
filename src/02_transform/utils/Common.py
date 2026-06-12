@@ -1,5 +1,6 @@
 import pyspark.sql.functions as F
-from utils.PostParser import post_parser
+# from utils.PostParser import post_parser
+from utils.PostParserRefactored import post_parser
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DateType, TimestampType
 
 def gcs_file_read(spark, bucket_name, filename, schema):
@@ -50,7 +51,7 @@ def partial_parse_raw_data(df_raw):
     return df_temp.select(
         F.col("parsed.date").alias("date"),
         F.col("parsed.time").alias("time"),
-        F.col("parsed.timestamp").alias("timestamp"),
+        F.col("parsed.timestamp").alias("event_timestamp"),
         F.col("parsed.location").alias("location"),
         F.col("parsed.direction").alias("direction"),
         F.col("parsed.type").alias("type"),

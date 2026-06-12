@@ -4,7 +4,6 @@ from datetime import datetime, date
 from typing import Optional, Tuple
 
 from utils.CleanString import location_string_clean
-from utils.LocationFunctions import get_locations_from_bq
 
 WORD_2_NUM = {
     'ZERO': 0,
@@ -20,37 +19,23 @@ WORD_2_NUM = {
     'TEN': 10,
 }
 
-DIRECTION_PATTERN = re.compile(r'\b(NB|SB|EB|WB)\b')
-TIME_PATTERN = re.compile(r'\b(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*(?P<meridiem>AM|PM)\b')
+DIRECTION_PATTERN = re.compile(r'\b(NB|SB|EB|WB|NORTHBOUND|SOUTHBOUND|EASTBOUND|WESTBOUND)\b')
+TIME_PATTERN = re.compile(r'\b(?P<hour>\d{1,2})(?::\s*(?P<minute>\d{2}))?\s*(?P<meridiem>AM|PM)\b')
 LANES_PATTERN = re.compile(r'\b(?P<count>\d+|ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\s+LANES?\b')
-INCIDENT_TYPE_PATTERN = re.compile(r'MMDA ALERT:\s*(?P<inc_type>.*?)\s+AT\b')
+INCIDENT_TYPE_PATTERN = re.compile(r'MMDA ALERT:\s*(?P<inc_type>.*?)\s+(AT|ALONG)\b')
 LOCATION_PATTERN = re.compile(
-    r'\bAT\s+'
+    r'\b(AT|ALONG)\s+'
     r'(?P<location>.*?)'
-    r'(?=\s+(?:AS OF|OF|NB|SB|EB|WB|MORE OR|INVOLVING|STALLED|$))',
+    r'(?=\s+(?:INVOLVING|STALLED|NB|SB|EB|WB|NORTHBOUND|SOUTHBOUND|EASTBOUND|WESTBOUND|MORE OR|AS OF|$))',
     re.IGNORECASE,
 )
 PARTICIPANTS_PATTERN = re.compile(
     r'INVOLVING\s+(?P<participants>.*?)\s*(?=\s+(?:AS OF|OF|MORE OR|$))',
     re.IGNORECASE,
 )
-RALLY_LOCATION_PATTERN = re.compile(r'AT\s+(?P<location>.*?)\s+MORE OR\b', re.IGNORECASE)
+RALLY_LOCATION_PATTERN = re.compile(r'(AT|ALONG)\s+(?P<location>.*?)\s+MORE OR\b', re.IGNORECASE)
 RALLY_PARTICIPANTS_PATTERN = re.compile(r'MORE OR LESS\s+(?P<count>\d+)\s+PAX\b', re.IGNORECASE)
 STALLED_PARTICIPANTS_PATTERN = re.compile(r'STALLED\s+(?P<participants>.*?)\s+DUE\b', re.IGNORECASE)
-
-
-@dataclass
-class PostEvent:
-    date: Optional[date]
-    time: Optional[str]
-    timestamp: Optional[datetime]
-    location: str
-    direction: Optional[str]
-    type: str
-    lanes_blocked: Optional[int]
-    participants: Optional[str]
-    post: str
-    source: str
 
 
 def normalize_text(value: Optional[str]) -> str:
@@ -138,7 +123,7 @@ def get_participants(tweet_text: str) -> Optional[str]:
     if not match:
         return None
 
-    participants = match.group('participants').strip()
+    participants = match.group('participants').strip().rstrip(',')
     return participants or None
 
 
@@ -199,7 +184,7 @@ def create_timestamp(parsed_date: Optional[date], time_text: Optional[str]) -> O
         return None
 
 
-def post_parser(content: str, created_at, source: str) -> PostEvent:
+def post_parser(content: str, created_at, source: str) -> Tuple:
     tweet_text = normalize_text(content)
     parsed_date = get_date(created_at)
     parsed_time = get_time(tweet_text)
@@ -218,15 +203,20 @@ def post_parser(content: str, created_at, source: str) -> PostEvent:
         location = get_location(tweet_text)
         participants = get_participants(tweet_text)
 
-    return PostEvent(
-        date=parsed_date,
-        time=parsed_time,
-        timestamp=timestamp,
-        location=location,
-        direction=direction,
-        type=inc_type,
-        lanes_blocked=lanes_blocked,
-        participants=participants,
-        post=tweet_text,
-        source=normalize_text(source),
+    # Ensure participants is a string (or None) to match previous schema expectations
+    participants_out = str(participants) if participants is not None else None
+
+    # Return a plain tuple matching the expected UDF/StructType order:
+    # (date, time, timestamp, location, direction, type, lanes_blocked, involved, post, link)
+    return (
+        parsed_date,
+        parsed_time,
+        timestamp,
+        location,
+        direction,
+        inc_type,
+        lanes_blocked,
+        participants_out,
+        tweet_text,
+        normalize_text(source),
     )

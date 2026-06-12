@@ -47,8 +47,7 @@ BEGIN
         FROM staging s
 
         LEFT JOIN mnl_accident_pipeline_dataset.dim_direction dir
-            ON s.direction = dir.short_name
-
+            ON s.direction IN (dir.short_name, dir.full_name)
     )
 
     SELECT

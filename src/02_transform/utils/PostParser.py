@@ -1,7 +1,6 @@
 import re
 from datetime import datetime, date
 from utils.CleanString import location_string_clean
-from utils.LocationFunctions import get_locations_from_bq
 
 word_2_num = {
     'ZERO': 0,

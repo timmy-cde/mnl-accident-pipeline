@@ -8,6 +8,7 @@ Initial Setup in Airflow
 - load stored procedures to bigquery (using Docker Operator)
 - load initial locations to bigquery (using Docker Operator)
 - ETL kaggle data (using Docker Operator)
+- Seed operations for dim_directions
 
 Daily Setup in Airflow
 
