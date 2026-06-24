@@ -1,7 +1,8 @@
 import re
-from dataclasses import dataclass
 from datetime import datetime, date
 from typing import Optional, Tuple
+from collections import defaultdict
+import hashlib
 
 from utils.CleanString import location_string_clean
 
@@ -17,6 +18,28 @@ WORD_2_NUM = {
     'EIGHT': 8,
     'NINE': 9,
     'TEN': 10,
+}
+
+VEHICLE_ALIASES = {
+    "PICKUP": "PICK-UP",
+    "PICK UP": "PICK-UP",
+    "PICK- UP": "PICK-UP",
+    "PICK -UP": "PICK-UP",
+    "EJEEP:": "E-JEEP",
+    "E- JEEP": "E-JEEP",
+    "E -JEEP": "E-JEEP",
+}
+
+VEHICLE_PLURALS = {
+    "MOTORCYCLES": "MOTORCYCLE",
+    "CARS": "CAR",
+    "VANS": "VAN",
+    "BUSES": "BUS",
+    "TRUCKS": "TRUCK",
+    "SUVS": "SUV",
+    "SUV'S": "SUV",
+    "JEEPNEYS": "JEEPNEY",
+    "TAXIS": "TAXI",
 }
 
 DIRECTION_PATTERN = re.compile(r'\b(NB|SB|EB|WB|NORTHBOUND|SOUTHBOUND|EASTBOUND|WESTBOUND)\b')
@@ -158,6 +181,80 @@ def get_stalled_participants(tweet_text: str) -> Optional[str]:
     return participants or None
 
 
+def normalize_vehicle_name(vehicle: str) -> str:
+    vehicle = vehicle.strip()
+    vehicle = VEHICLE_PLURALS.get(vehicle, vehicle)
+
+    vehicle = re.sub(
+        r'(?P<wheel>\d{1,2})\s*(?P<name>WHEELER TRUCK)', 
+        r'\g<wheel>-\g<name>', 
+        vehicle
+    )
+
+    vehicle = VEHICLE_ALIASES.get(vehicle, vehicle)
+
+    return vehicle
+
+
+def normalize_involved(text: str) -> str:
+    """
+    Examples:
+    CAR, VAN AND 2 MOTORCYCLES
+        -> 1 CAR|1 VAN|2 MOTORCYCLE
+
+    A CAR, VAN, AND TWO MOTORCYCLES
+        -> 1 CAR|1 VAN|2 MOTORCYCLE
+
+    VAN AND CAR
+        -> 1 CAR|1 VAN
+    
+    16 WHEELER TRUCK
+        -> 1 16-WHEELER TRUCK
+    """
+
+    if not text:
+        return None
+
+    text = text.upper()
+
+    # Remove articles
+    text = re.sub(r"\bA\b", "", text)
+    text = re.sub(r"\bAN\b", "", text)
+    text = normalize_vehicle_name(text)
+
+    # Convert number words
+    for word, num in WORD_2_NUM.items():
+        text = re.sub(rf"\b{word}\b", str(num), text)
+
+    # Normalize separators
+    text = text.replace(",", " AND ")
+    parts = [p.strip() for p in re.split(r"\bAND\b", text) if p.strip()]
+    vehicle_counts = defaultdict(int)
+
+    for part in parts:
+
+        # Example:
+        # "2 MOTORCYCLES"
+        m = re.match(r"^(\d+)\s+(.+)$", part)
+
+        if m:
+            count = int(m.group(1))
+            vehicle = normalize_vehicle_name(m.group(2))
+        else:
+            count = 1
+            vehicle = normalize_vehicle_name(part)
+
+        vehicle_counts[vehicle] += count
+
+    # Sort for consistency
+    normalized = "|".join(
+        f"{count} {vehicle}"
+        for vehicle, count in sorted(vehicle_counts.items())
+    )
+    
+    return normalized
+
+
 def get_date(value) -> Optional[date]:
     if isinstance(value, date) and not isinstance(value, datetime):
         return value
@@ -183,6 +280,17 @@ def create_timestamp(parsed_date: Optional[date], time_text: Optional[str]) -> O
     except ValueError:
         return None
 
+def generate_id(date: Optional[date], time: Optional[str], location: str, post: str) -> str:
+
+    concatenated = "".join([
+        "" if date is None else str(date),
+        "" if time is None else str(time),
+        "" if location is None else str(location),
+        "" if post is None else str(post)
+    ])
+
+    return hashlib.sha256(concatenated.encode("utf-8")).hexdigest().upper()
+
 
 def post_parser(content: str, created_at, source: str) -> Tuple:
     tweet_text = normalize_text(content)
@@ -205,10 +313,19 @@ def post_parser(content: str, created_at, source: str) -> Tuple:
 
     # Ensure participants is a string (or None) to match previous schema expectations
     participants_out = str(participants) if participants is not None else None
+    participants_normalized= normalize_involved(participants_out)
+
+    id = generate_id(
+        parsed_date,
+        parsed_time,
+        location,
+        tweet_text
+    )
 
     # Return a plain tuple matching the expected UDF/StructType order:
     # (date, time, timestamp, location, direction, type, lanes_blocked, involved, post, link)
     return (
+        id,
         parsed_date,
         parsed_time,
         timestamp,
@@ -216,7 +333,34 @@ def post_parser(content: str, created_at, source: str) -> Tuple:
         direction,
         inc_type,
         lanes_blocked,
-        participants_out,
+        participants_normalized,
         tweet_text,
         normalize_text(source),
     )
+
+
+def parse_involved(involved_str):
+    if not involved_str:
+        return []
+
+    results = []
+
+    parts = involved_str.split("|")
+
+    for p in parts:
+        p = p.strip()
+
+        match = re.match(r"^(\d+)\s+(.+)$", p)
+        if match:
+            count = int(match.group(1))
+            vehicle = match.group(2).strip().upper()
+        else:
+            count = 1
+            vehicle = p.upper()
+
+        results.append({
+            "vehicle_type": vehicle,
+            "vehicle_count": count
+        })
+
+    return results

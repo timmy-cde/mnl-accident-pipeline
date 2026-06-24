@@ -83,52 +83,6 @@ resource "google_bigquery_table" "locations_staging_table" {
   ])
 }
 
-resource "google_bigquery_table" "locations_table" {
-  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-  table_id   = "dim_locations"
-  project = var.project
-
-  deletion_protection = false
-
-  table_constraints {
-    primary_key {
-      columns = ["location_id"]
-    }
-  }
-
-  schema     = jsonencode([
-    {
-      name = "location_id"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
-      name = "city"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
-      name = "location"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
-      name = "latitude"
-      type = "FLOAT",
-      mode = "NULLABLE"
-    },
-    {
-      name = "longitude"
-      type = "FLOAT",
-      mode = "NULLABLE"
-    },
-    {
-      name = "accuracy"
-      type = "FLOAT",
-      mode = "NULLABLE"
-    }
-  ])
-}
 resource "google_bigquery_table" "enriched_table" {
   dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
   table_id   = "staging_enriched"
@@ -137,6 +91,11 @@ resource "google_bigquery_table" "enriched_table" {
   deletion_protection = false
 
   schema     = jsonencode([
+    {
+      name = "id"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
     {
       name = "date"
       type = "DATE",
@@ -215,6 +174,90 @@ resource "google_bigquery_table" "enriched_table" {
   ])
 }
 
+resource "google_bigquery_table" "staging_vehicle_table" {
+  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+  table_id   = "staging_vehicles"
+  project = var.project
+
+  deletion_protection = false
+
+  schema     = jsonencode([
+    {
+      name = "event_id"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "vehicle_type"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "vehicle_count"
+      type = "INTEGER",
+      mode = "NULLABLE"
+    },
+    {
+      name = "suggested_from"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "is_verified"
+      type = "BOOLEAN",
+      mode = "NULLABLE"
+    }
+  ])
+  
+}
+
+resource "google_bigquery_table" "locations_table" {
+  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+  table_id   = "dim_locations"
+  project = var.project
+
+  deletion_protection = false
+
+  table_constraints {
+    primary_key {
+      columns = ["location_id"]
+    }
+  }
+
+  schema     = jsonencode([
+    {
+      name = "location_id"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "city"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "location"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "latitude"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    },
+    {
+      name = "longitude"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    },
+    {
+      name = "accuracy"
+      type = "FLOAT",
+      mode = "NULLABLE"
+    }
+  ])
+}
+
 resource "google_bigquery_table" "direction_table" {
   dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
   table_id   = "dim_direction"
@@ -241,6 +284,43 @@ resource "google_bigquery_table" "direction_table" {
   ])
 }
 
+resource "google_bigquery_table" "dim_vehicle_table" {
+  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+  table_id   = "dim_vehicle"
+  project = var.project
+
+  deletion_protection = false
+
+  table_constraints {
+    primary_key {
+      columns = ["vehicle_type"]
+    }
+  }
+
+  schema     = jsonencode([
+    {
+      name = "vehicle_type"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "vehicle_group"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "suggested_from"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "is_verified"
+      type = "BOOLEAN",
+      mode = "NULLABLE"
+    }
+  ])
+}
+
 resource "google_bigquery_table" "fact_events_table" {
   dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
   table_id   = "fact_events"
@@ -250,7 +330,7 @@ resource "google_bigquery_table" "fact_events_table" {
 
   table_constraints {
     primary_key {
-      columns = ["id"]
+      columns = ["event_id"]
     }
 
     foreign_keys {
@@ -285,7 +365,7 @@ resource "google_bigquery_table" "fact_events_table" {
 
   schema     = jsonencode([
     {
-      name = "id"
+      name = "event_id"
       type = "STRING",
       mode = "NULLABLE"
     },
@@ -315,11 +395,6 @@ resource "google_bigquery_table" "fact_events_table" {
       mode = "NULLABLE"
     },
     {
-      name = "involved"
-      type = "STRING",
-      mode = "NULLABLE"
-    },
-    {
       name = "post"
       type = "STRING",
       mode = "NULLABLE"
@@ -327,6 +402,65 @@ resource "google_bigquery_table" "fact_events_table" {
     {
       name = "link"
       type = "STRING",
+      mode = "NULLABLE"
+    }
+  ])
+}
+
+resource "google_bigquery_table" "fact_event_vehicles_table" {
+  dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+  table_id   = "fact_event_vehicles"
+  project = var.project
+
+  deletion_protection = false
+
+  table_constraints {
+
+
+    foreign_keys {
+      name = "fk_event_id"
+
+      referenced_table {
+        project_id = google_bigquery_dataset.mnl_accident_dataset.project
+        dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+        table_id   = google_bigquery_table.fact_events_table.table_id
+      }
+
+      column_references {
+        referencing_column = "event_id"
+        referenced_column = "event_id"
+      }
+    }
+    foreign_keys {
+      name = "fk_vehicle_type"
+
+      referenced_table {
+        project_id = google_bigquery_dataset.mnl_accident_dataset.project
+        dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
+        table_id   = google_bigquery_table.dim_vehicle_table.table_id
+      }
+
+      column_references {
+        referencing_column = "vehicle_type"
+        referenced_column = "vehicle_type"
+      }
+    }
+  }
+
+  schema     = jsonencode([
+    {
+      name = "event_id"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "vehicle_type"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
+      name = "vehicle_count"
+      type = "INTEGER",
       mode = "NULLABLE"
     }
   ])
