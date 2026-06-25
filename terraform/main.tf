@@ -83,16 +83,16 @@ resource "google_bigquery_table" "locations_staging_table" {
   ])
 }
 
-resource "google_bigquery_table" "enriched_table" {
+resource "google_bigquery_table" "staging_events_table" {
   dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-  table_id   = "staging_enriched"
+  table_id   = "staging_events"
   project = var.project
 
   deletion_protection = false
 
   schema     = jsonencode([
     {
-      name = "id"
+      name = "event_id"
       type = "STRING",
       mode = "NULLABLE"
     },
@@ -193,6 +193,11 @@ resource "google_bigquery_table" "staging_vehicle_table" {
       mode = "NULLABLE"
     },
     {
+      name = "vehicle_group"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
       name = "vehicle_count"
       type = "INTEGER",
       mode = "NULLABLE"
@@ -284,9 +289,9 @@ resource "google_bigquery_table" "direction_table" {
   ])
 }
 
-resource "google_bigquery_table" "dim_vehicle_table" {
+resource "google_bigquery_table" "dim_vehicles_table" {
   dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-  table_id   = "dim_vehicle"
+  table_id   = "dim_vehicles"
   project = var.project
 
   deletion_protection = false
@@ -437,7 +442,7 @@ resource "google_bigquery_table" "fact_event_vehicles_table" {
       referenced_table {
         project_id = google_bigquery_dataset.mnl_accident_dataset.project
         dataset_id = google_bigquery_dataset.mnl_accident_dataset.dataset_id
-        table_id   = google_bigquery_table.dim_vehicle_table.table_id
+        table_id   = google_bigquery_table.dim_vehicles_table.table_id
       }
 
       column_references {

@@ -8,10 +8,10 @@ def load_vehicles_df(spark, table_id):
                 .load()
 
 
-def add_vehicle_suggestions(df_involved, df_dim_vehicle):
+def add_vehicle_suggestions(df_involved, df_dim_vehicles):
 
     verified_lookup = (
-        df_dim_vehicle
+        df_dim_vehicles
         .select(
             F.upper(F.trim("vehicle_type")).alias("vehicle_type"),
             "vehicle_group",

@@ -75,7 +75,7 @@ def submit_load_job(uris, project_id, dataset, bq_client, job_config):
     Returns:
         LoadJob: The submitted load job object.
     """
-    staging_table_id = f"{project_id}.{dataset}.staging_enriched"
+    staging_table_id = f"{project_id}.{dataset}.staging_events"
 
     # Convert single URI to list for uniform handling
     if isinstance(uris, str):
@@ -151,7 +151,7 @@ def load_historical_data(start_date, end_date, batch_size=14):
         print(f"Job {idx}/{len(load_jobs)} completed: {load_job.output_rows} rows loaded")
 
     # Get final table stats
-    staging_table_id = f"{project_id}.{dataset}.staging_enriched"
+    staging_table_id = f"{project_id}.{dataset}.staging_events"
     staging_table = bq_client.get_table(staging_table_id)
     
     print(f"\nHistorical load completed for {len(enriched_uris)} days")

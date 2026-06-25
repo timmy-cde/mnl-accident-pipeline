@@ -1,6 +1,6 @@
 BEGIN TRANSACTION;
 
-INSERT INTO `mnl_accident_pipeline_dataset.dim_vehicle` (vehicle_type, vehicle_group, suggested_from, is_verified)
+INSERT INTO `mnl_accident_pipeline_dataset.dim_vehicles` (vehicle_type, vehicle_group, suggested_from, is_verified)
 VALUES
   ('TRUCK', 'COMMERCIAL', 'NONE', TRUE),
   ('ELF TRUCK', 'COMMERCIAL', 'NONE', TRUE),

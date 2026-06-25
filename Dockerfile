@@ -26,9 +26,10 @@ RUN apt-get update \
 WORKDIR /app
 
 # Copy ETL scripts and DAGs
-COPY src/      /app/src/
 COPY config/   /app/config/
 COPY dags/     /opt/airflow/dags/
+COPY sql/      /app/sql/
+COPY src/      /app/src/
 
 # Ensure airflow home is set
 ENV AIRFLOW_HOME=/opt/airflow
