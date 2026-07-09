@@ -421,6 +421,9 @@ resource "google_bigquery_table" "fact_event_vehicles_table" {
 
   table_constraints {
 
+    primary_key {
+      columns = ["fev_id"]
+    }
 
     foreign_keys {
       name = "fk_event_id"
@@ -453,6 +456,11 @@ resource "google_bigquery_table" "fact_event_vehicles_table" {
   }
 
   schema     = jsonencode([
+    {
+      name = "fev_id"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
     {
       name = "event_id"
       type = "STRING",

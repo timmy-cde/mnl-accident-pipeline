@@ -35,7 +35,7 @@ def gcs_upload_parquet(bucket_name, folder_name, df, is_vehicle_df=False):
 
         df.write \
             .mode("append") \
-            .parquet(f"gs://{bucket_name}/{folder_name}/{year}/{month}/enriched_vehicles_{year}{month}{day}/")
+            .parquet(f"gs://{bucket_name}/{folder_name}/date={year}-{month}-{day}/")
     
 
 def partial_parse_raw_data(df_raw):
