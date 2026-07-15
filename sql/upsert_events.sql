@@ -3,7 +3,7 @@ BEGIN
 
   BEGIN TRANSACTION;
 
-  INSERT INTO mnl_accident_pipeline_dataset.fact_events (event_id, event_timestamp, location_id, event_type, direction_id, lanes_blocked, post, link)
+  INSERT INTO mnl_accident_pipeline_dataset.fact_events (event_id, event_timestamp, location_id, event_type, event_type_details, direction_id, lanes_blocked, post, link)
 
   WITH staging AS (
         SELECT
@@ -18,6 +18,7 @@ BEGIN
                 WHEN type LIKE 'RALLY%' THEN 'RALLY'
                 ELSE 'OTHERS'
             END AS event_type,
+            type as event_type_details,
             direction,
             lanes_blocked,
             post,
@@ -30,6 +31,7 @@ BEGIN
             s.event_timestamp,
             s.location_id,
             s.event_type,
+            s.event_type_details,
             IFNULL(dir.short_name, 'UNKNOWN') AS direction_id,
             s.lanes_blocked,
             s.post,
@@ -45,6 +47,7 @@ BEGIN
         a.event_timestamp,
         a.location_id,
         a.event_type,
+        a.event_type_details,
         a.direction_id,
         a.lanes_blocked,
         a.post,

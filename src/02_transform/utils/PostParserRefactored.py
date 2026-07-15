@@ -45,9 +45,9 @@ VEHICLE_PLURALS = {
 DIRECTION_PATTERN = re.compile(r'\b(NB|SB|EB|WB|NORTHBOUND|SOUTHBOUND|EASTBOUND|WESTBOUND)\b')
 TIME_PATTERN = re.compile(r'\b(?P<hour>\d{1,2})(?::\s*(?P<minute>\d{2}))?\s*(?P<meridiem>AM|PM)\b')
 LANES_PATTERN = re.compile(r'\b(?P<count>\d+|ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN)\s+LANES?\b')
-INCIDENT_TYPE_PATTERN = re.compile(r'MMDA ALERT:\s*(?P<inc_type>.*?)\s+(AT|ALONG)\b')
+INCIDENT_TYPE_PATTERN = re.compile(r'MMDA ALERT:\s*(?P<inc_type>.*?)\s+(AT|ALONG|ON)\b')
 LOCATION_PATTERN = re.compile(
-    r'\b(AT|ALONG)\s+'
+    r'\b(AT|ALONG|ON)\s+'
     r'(?P<location>.*?)'
     r'(?=\s+(?:INVOLVING|STALLED|NB|SB|EB|WB|NORTHBOUND|SOUTHBOUND|EASTBOUND|WESTBOUND|MORE OR|AS OF|$))',
     re.IGNORECASE,
@@ -56,7 +56,7 @@ PARTICIPANTS_PATTERN = re.compile(
     r'INVOLVING\s+(?P<participants>.*?)\s*(?=\s+(?:AS OF|OF|MORE OR|$))',
     re.IGNORECASE,
 )
-RALLY_LOCATION_PATTERN = re.compile(r'(AT|ALONG)\s+(?P<location>.*?)\s+MORE OR\b', re.IGNORECASE)
+RALLY_LOCATION_PATTERN = re.compile(r'(AT|ALONG|ON)\s+(?P<location>.*?)\s+MORE OR\b', re.IGNORECASE)
 RALLY_PARTICIPANTS_PATTERN = re.compile(r'MORE OR LESS\s+(?P<count>\d+)\s+PAX\b', re.IGNORECASE)
 STALLED_PARTICIPANTS_PATTERN = re.compile(r'STALLED\s+(?P<participants>.*?)\s+DUE\b', re.IGNORECASE)
 

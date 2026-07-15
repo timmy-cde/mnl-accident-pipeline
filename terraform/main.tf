@@ -390,6 +390,11 @@ resource "google_bigquery_table" "fact_events_table" {
       mode = "NULLABLE"
     },
     {
+      name = "event_type_details"
+      type = "STRING",
+      mode = "NULLABLE"
+    },
+    {
       name = "direction_id"
       type = "STRING",
       mode = "NULLABLE"
