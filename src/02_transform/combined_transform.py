@@ -231,6 +231,9 @@ def process_df(spark, df_raw, df_locations, df_vehicles, locations_table_id, sta
     df_involved = parse_involved_data(df_final)
     df_involved_enriched = add_vehicle_suggestions(df_involved, df_vehicles)
 
+    current_date_value = df_final.filter(df_final['date'].isNotNull()).first()['date']
+    df_involved_enriched = df_involved_enriched.withColumn('date', F.lit(current_date_value))
+
     return df_final, df_involved_enriched
 
 
@@ -313,10 +316,10 @@ def load_raw_if_exists(spark, gcs_client, bucket_name, raw_filename, schema):
 def upload_results(bucket_name, clean_folder, vehicles_folder, df_final, df_involved):
     """Upload final and involved dataframes to GCS as parquet, if present."""
     if df_final is not None:
-        gcs_upload_parquet(bucket_name, clean_folder, df_final, is_vehicle_df=False)
+        gcs_upload_parquet(bucket_name, clean_folder, df_final)
 
     if df_involved is not None:
-        gcs_upload_parquet(bucket_name, vehicles_folder, df_involved, is_vehicle_df=True)
+        gcs_upload_parquet(bucket_name, vehicles_folder, df_involved)
 
 
 def run_daily_transform():

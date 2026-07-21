@@ -31,5 +31,5 @@ config/*.json
 .complete
 .data
 
-
 .vscode/
+.DS_Store

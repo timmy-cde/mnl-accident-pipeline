@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pyspark.sql.functions as F
-from utils.PostParserRefactored import post_parser, parse_involved
+from utils.PostParser import post_parser, parse_involved
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, DateType, TimestampType, ArrayType
 
 def gcs_file_read(spark, bucket_name, filename, schema):
@@ -18,24 +18,11 @@ def gcs_file_read(spark, bucket_name, filename, schema):
     
     return df
 
-def gcs_upload_parquet(bucket_name, folder_name, df, is_vehicle_df=False):
-    if not is_vehicle_df:
-        df.write \
-            .mode("append") \
-            .partitionBy("date") \
-            .parquet(f"gs://{bucket_name}/{folder_name}/")
-    else:
-        PHT = ZoneInfo("Asia/Manila")
-        now = datetime.now(PHT)
-        yesterday = now - timedelta(days=1)
-
-        year = yesterday.strftime("%Y")
-        month = yesterday.strftime("%m")
-        day = yesterday.strftime("%d")
-
-        df.write \
-            .mode("append") \
-            .parquet(f"gs://{bucket_name}/{folder_name}/date={year}-{month}-{day}/")
+def gcs_upload_parquet(bucket_name, folder_name, df):
+    df.write \
+        .mode("append") \
+        .partitionBy("date") \
+        .parquet(f"gs://{bucket_name}/{folder_name}/")
     
 
 def partial_parse_raw_data(df_raw):

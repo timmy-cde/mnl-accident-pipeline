@@ -44,11 +44,15 @@ RUN pip install --no-cache-dir -r requirements.prod.txt
 # Switch to root to install OS dependencies
 USER root
 
-RUN apt-get update
-RUN apt-get install -y ca-certificates curl openjdk-17-jdk
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        openjdk-17-jdk \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set Java environment
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+RUN JAVA_PATH="$(dirname "$(dirname "$(readlink -f "$(which java)")")")" \
+    && ln -s "$JAVA_PATH" /opt/java
+
+ENV JAVA_HOME=/opt/java
 ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Set PySpark Python environment
@@ -64,10 +68,10 @@ USER airflow
 #     airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com --if-not-exists && \
 #     airflow scheduler & \
 #     airflow api-server"]
-ENTRYPOINT ["bash", "-c", "\
-    airflow db migrate && \
-    airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com && \
-    airflow scheduler"]
+# ENTRYPOINT ["bash", "-c", "\
+#     airflow db migrate && \
+#     airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com && \
+#     airflow scheduler"]
 
 # Optional Cloud Run Adaptation
 # Cloud Run works best for ephemeral execution.
