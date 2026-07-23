@@ -144,6 +144,8 @@ def load_daily_data():
 
     print(f"Daily load completed: {load_job.output_rows} rows loaded for {uris['vehicles']}.")
 
+    run_stored_procedures(load_config.project_id, load_config.dataset, load_config.bq_client)
+
 
 def load_historical_data(start_date, end_date, batch_size=14):
     """Load a range of historical enriched data from GCS into BigQuery in parallel.
@@ -180,6 +182,8 @@ def load_historical_data(start_date, end_date, batch_size=14):
 
     submit_batch_load_job(enriched_uris, batch_size, load_config, "staging_events", start_date, end_date)
     submit_batch_load_job(vehicle_uris, batch_size, load_config, "staging_vehicles", start_date, end_date)
+
+    run_stored_procedures(load_config.project_id, load_config.dataset, load_config.bq_client)
 
 
 def submit_batch_load_job(uris, batch_size, load_config, staging_table_name, start_date, end_date):
@@ -224,6 +228,14 @@ def submit_batch_load_job(uris, batch_size, load_config, staging_table_name, sta
     print(f"Total rows in staging table: {staging_table.num_rows}")
     print(f"Date range: {start_date} to {end_date}")
 
+def run_stored_procedures(project_id, dataset, client):
+    query = f"CALL `{project_id}.{dataset}.upsert_events`()"
+    client.query(query).result()
+
+    query = f"CALL `{project_id}.{dataset}.upsert_vehicles`()"
+    client.query(query).result()
+
+    print(f"new fact_events and fact_event_vehicles data are loaded.")
 
 
 def main():
